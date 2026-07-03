@@ -61,6 +61,14 @@ def _filter_site_ids(
     return {site.id for site in query.all()}
 
 
+def _site_scope_label(db: Session, site_id: int | None = None) -> str:
+    if site_id is None:
+        return "Todas las sedes"
+
+    site = db.get(models.Site, site_id)
+    return site.name if site is not None else "Sede seleccionada"
+
+
 def get_dashboard_summary(
     db: Session, region: str | None = None, site_id: int | None = None
 ) -> dict:
@@ -220,13 +228,14 @@ def get_site_kpis(db: Session, region: str | None = None) -> list[dict]:
 def get_region_report(
     db: Session,
     region: str | None = None,
+    site_id: int | None = None,
     start_date: date | None = None,
     end_date: date | None = None,
 ) -> dict:
     today = date.today()
     start_date = start_date or shift_month(date(today.year, today.month, 1), -5)
     end_date = end_date or today
-    site_ids = _filter_site_ids(db, region=region)
+    site_ids = _filter_site_ids(db, region=region, site_id=site_id)
     clients = _load_clients(db)
 
     report_rows = []
@@ -282,8 +291,16 @@ def get_region_report(
         )
         month_cursor = next_month
 
+    marketing_actions = _build_marketing_actions(
+        db,
+        site_id=site_id,
+        report_rows=report_rows,
+    )
+
     return {
         "region": region or "Todas",
+        "site_id": site_id,
+        "site_name": _site_scope_label(db, site_id=site_id),
         "start_date": start_date.isoformat(),
         "end_date": end_date.isoformat(),
         "series": report_rows,
@@ -293,7 +310,172 @@ def get_region_report(
             "new_clients": sum(row["new_clients"] for row in report_rows),
             "churn_events": sum(row["churn_events"] for row in report_rows),
         },
+        "marketing_actions": marketing_actions,
     }
+
+
+def _build_marketing_actions(
+    db: Session,
+    site_id: int | None,
+    report_rows: list[dict],
+) -> list[dict]:
+    from app.services.ml import get_churn_predictions, get_segments
+
+    site_name = _site_scope_label(db, site_id=site_id)
+    predictions = get_churn_predictions(db)["predictions"]
+    segments = get_segments(db)["clients"]
+
+    if site_id is not None:
+        predictions = [item for item in predictions if item["site"] == site_name]
+        segments = [item for item in segments if item["site"] == site_name]
+
+    high_risk_clients = [item for item in predictions if item["risk_level"] == "alto"]
+    medium_risk_clients = [item for item in predictions if item["risk_level"] == "medio"]
+    total_risk_clients = len(high_risk_clients) + len(medium_risk_clients)
+
+    high_consumption_clients = [
+        item
+        for item in segments
+        if item["segment"] == "Residencial Alto Consumo" and item["pending_payments"] == 0
+    ]
+    corporate_clients = [
+        item
+        for item in segments
+        if item["segment"] == "Empresarial / Corporativo" and item["pending_payments"] == 0
+    ]
+
+    total_incidents = sum(row["incidents"] for row in report_rows)
+    total_new_clients = sum(row["new_clients"] for row in report_rows)
+    total_churn = sum(row["churn_events"] for row in report_rows)
+
+    actions = []
+
+    if total_risk_clients > 0:
+        actions.append(
+            {
+                "priority": "Alta" if high_risk_clients else "Media",
+                "chart_label": "Retencion",
+                "title": "Campana de retencion inmediata",
+                "target": (
+                    f"{total_risk_clients} clientes con senales de posible baja en {site_name}."
+                ),
+                "why": (
+                    "El sistema detecto clientes con riesgo medio o alto de abandonar el "
+                    "servicio, por lo que conviene actuar antes de la cancelacion."
+                ),
+                "recommended_actions": [
+                    "Llamada preventiva en las siguientes 48 horas.",
+                    "Oferta temporal de beneficio o mejora de plan para retener al cliente.",
+                    "Priorizar revision tecnica o de cobranza si el caso lo requiere.",
+                ],
+                "estimated_clients": total_risk_clients,
+            }
+        )
+
+    if high_consumption_clients:
+        actions.append(
+            {
+                "priority": "Media",
+                "chart_label": "Mejora",
+                "title": "Campana de mejora de plan",
+                "target": (
+                    f"{len(high_consumption_clients)} clientes con alto uso y pagos al dia."
+                ),
+                "why": (
+                    "Hay clientes con perfil de mayor consumo que podrian responder bien a "
+                    "mejoras de velocidad, combos o servicios adicionales."
+                ),
+                "recommended_actions": [
+                    "Ofrecer subida de velocidad con precio preferencial.",
+                    "Promover paquetes con servicios complementarios.",
+                    "Enviar propuesta personalizada por sede o asesor comercial.",
+                ],
+                "estimated_clients": len(high_consumption_clients),
+            }
+        )
+    elif corporate_clients:
+        actions.append(
+            {
+                "priority": "Media",
+                "chart_label": "Fidelizacion",
+                "title": "Campana de fidelizacion empresarial",
+                "target": (
+                    f"{len(corporate_clients)} clientes empresariales con oportunidad de fidelizacion."
+                ),
+                "why": (
+                    "La base muestra clientes empresariales que pueden responder bien a "
+                    "beneficios de permanencia, soporte preferente o ampliacion de servicios."
+                ),
+                "recommended_actions": [
+                    "Ofrecer renovacion con mejores condiciones comerciales.",
+                    "Presentar beneficios de soporte preferente o SLA.",
+                    "Proponer ampliacion de enlaces, sedes o servicios agregados.",
+                ],
+                "estimated_clients": len(corporate_clients),
+            }
+        )
+
+    if total_incidents > 0:
+        actions.append(
+            {
+                "priority": "Media" if total_incidents >= 8 else "Oportunidad",
+                "chart_label": "Recuperacion",
+                "title": "Campana de recuperacion de experiencia",
+                "target": f"Clientes atendidos en {total_incidents} casos registrados en el periodo.",
+                "why": (
+                    "Cuando aumenta la cantidad de incidencias, una campana de seguimiento "
+                    "ayuda a recuperar confianza y reduce el riesgo de quejas o bajas."
+                ),
+                "recommended_actions": [
+                    "Enviar mensaje de seguimiento despues de la atencion.",
+                    "Ofrecer encuesta corta y beneficio de recuperacion si corresponde.",
+                    "Crear lista de clientes para control de calidad por sede.",
+                ],
+                "estimated_clients": total_incidents,
+            }
+        )
+
+    if total_new_clients <= total_churn:
+        actions.append(
+            {
+                "priority": "Oportunidad",
+                "chart_label": "Captacion",
+                "title": "Campana local de captacion y referidos",
+                "target": f"Prospectos y recomendaciones en la sede {site_name}.",
+                "why": (
+                    "Las altas del periodo no superan con claridad a las bajas, por lo que "
+                    "conviene reforzar la captacion comercial y los referidos."
+                ),
+                "recommended_actions": [
+                    "Impulsar promociones de ingreso con instalacion o descuento inicial.",
+                    "Activar programa de referidos para clientes satisfechos.",
+                    "Coordinar volanteo, redes locales o alianzas con comercios cercanos.",
+                ],
+                "estimated_clients": total_new_clients,
+            }
+        )
+
+    if not actions:
+        actions.append(
+            {
+                "priority": "Oportunidad",
+                "chart_label": "Presencia",
+                "title": "Campana de presencia comercial",
+                "target": f"Clientes actuales y prospectos de {site_name}.",
+                "why": (
+                    "El comportamiento actual es estable, por lo que conviene mantener "
+                    "presencia comercial y recordacion de marca."
+                ),
+                "recommended_actions": [
+                    "Promover beneficios del servicio actual y canales de atencion.",
+                    "Reforzar mensajes de continuidad y calidad del servicio.",
+                    "Mantener base de clientes actualizada para futuras campanas.",
+                ],
+                "estimated_clients": 0,
+            }
+        )
+
+    return actions[:3]
 
 
 def export_region_report_csv(report: dict) -> str:

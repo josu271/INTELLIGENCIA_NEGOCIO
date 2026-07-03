@@ -16,14 +16,6 @@ export function LoginPage({
           Ingresa para revisar la informacion del negocio, registrar atenciones y
           descargar reportes sin complicaciones.
         </p>
-        <div className="credential-strip">
-          <span>
-            Usuario de prueba: <strong>admin</strong>
-          </span>
-          <span>
-            Clave de prueba: <strong>admin123</strong>
-          </span>
-        </div>
         <form className="login-form" onSubmit={handleLogin}>
           <label>
             Usuario

@@ -8,6 +8,7 @@ import {
 import './App.css'
 import { cablebiApi } from './api/cablebi'
 import { Badge } from './components/ui'
+import { ZoeChatWidget } from './components/ZoeChatWidget'
 import {
   DEFAULT_VIEW,
   initialClientForm,
@@ -63,7 +64,7 @@ function App() {
   const [loginForm, setLoginForm] = useState({ username: 'admin', password: 'admin123' })
   const [filters, setFilters] = useState({ region: '', site_id: '' })
   const [reportFilters, setReportFilters] = useState({
-    region: '',
+    site_id: '',
     start_date: '',
     end_date: '',
   })
@@ -172,7 +173,7 @@ function App() {
   })
 
   const loadReport = useEffectEvent(async (activeToken) => {
-    const reportData = await cablebiApi.getRegionReport(activeToken, reportFilters)
+    const reportData = await cablebiApi.getSiteReport(activeToken, reportFilters)
     setReport(reportData)
   })
 
@@ -274,7 +275,7 @@ function App() {
     }
     loadReport(token).catch((requestError) => setError(requestError.message))
   }, [
-    reportFilters.region,
+    reportFilters.site_id,
     reportFilters.start_date,
     reportFilters.end_date,
     token,
@@ -473,12 +474,12 @@ function App() {
 
   async function exportReport() {
     try {
-      const content = await cablebiApi.exportRegionReport(token, reportFilters)
+      const content = await cablebiApi.exportSiteReport(token, reportFilters)
       const blob = new Blob([content], { type: 'text/csv;charset=utf-8' })
       const url = URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
-      link.download = 'reporte-cablebi.csv'
+      link.download = 'reporte-cablebi-por-sede.csv'
       link.click()
       URL.revokeObjectURL(url)
       setNotice('Reporte descargado correctamente.')
@@ -663,6 +664,8 @@ function App() {
           />
         ) : null}
       </main>
+
+      <ZoeChatWidget token={token} view={view} />
     </div>
   )
 }

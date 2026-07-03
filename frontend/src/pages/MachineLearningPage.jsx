@@ -2,6 +2,27 @@ import { Badge, DataTable, MetricCard, Panel } from '../components/ui'
 import { getDisplayLabel, riskLevelLabels } from '../utils/display'
 import { formatCurrency, formatNumber, formatPercent } from '../utils/format'
 
+const modelStack = [
+  {
+    title: 'Riesgo de baja',
+    tool: 'Random Forest',
+    description:
+      'Se usa para estimar la probabilidad de que un cliente deje el servicio.',
+  },
+  {
+    title: 'Tipos de cliente',
+    tool: 'K-Means',
+    description:
+      'Se usa para agrupar clientes con comportamientos parecidos y apoyar campanas diferenciadas.',
+  },
+  {
+    title: 'Herramientas',
+    tool: 'scikit-learn y pandas',
+    description:
+      'Actualmente no se usa TensorFlow; el analisis trabaja con herramientas mas ligeras y explicables.',
+  },
+]
+
 const featureLabels = {
   tenure_months: {
     label: 'Tiempo con el servicio',
@@ -108,6 +129,24 @@ export function MachineLearningPage({
             detail="Que tan claros son los grupos"
             tone="navy"
           />
+        </div>
+      </Panel>
+
+      <Panel
+        eyebrow="Motor del analisis"
+        title="Que modelo usa el sistema"
+        subtitle="Aqui puedes ver de forma clara que motor analitico esta trabajando por detras."
+      >
+        <div className="marketing-grid">
+          {modelStack.map((item) => (
+            <article key={item.title} className="marketing-card">
+              <div className="marketing-head">
+                <h3>{item.title}</h3>
+                <Badge tone="navy">{item.tool}</Badge>
+              </div>
+              <p className="marketing-why">{item.description}</p>
+            </article>
+          ))}
         </div>
       </Panel>
 

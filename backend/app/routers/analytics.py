@@ -45,26 +45,42 @@ def site_kpis(
     return get_site_kpis(db, region=region)
 
 
+@router.get("/reportes/sedes")
 @router.get("/reportes/regional")
 def region_report(
     region: str | None = None,
+    site_id: int | None = None,
     start_date: date | None = Query(default=None),
     end_date: date | None = Query(default=None),
     db: Session = Depends(get_db),
     _: models.User = Depends(get_current_user),
 ) -> dict:
-    return get_region_report(db, region=region, start_date=start_date, end_date=end_date)
+    return get_region_report(
+        db,
+        region=region,
+        site_id=site_id,
+        start_date=start_date,
+        end_date=end_date,
+    )
 
 
+@router.get("/reportes/sedes/export", response_class=PlainTextResponse)
 @router.get("/reportes/regional/export", response_class=PlainTextResponse)
 def export_region_report(
     region: str | None = None,
+    site_id: int | None = None,
     start_date: date | None = Query(default=None),
     end_date: date | None = Query(default=None),
     db: Session = Depends(get_db),
     _: models.User = Depends(get_current_user),
 ) -> str:
-    report = get_region_report(db, region=region, start_date=start_date, end_date=end_date)
+    report = get_region_report(
+        db,
+        region=region,
+        site_id=site_id,
+        start_date=start_date,
+        end_date=end_date,
+    )
     return export_region_report_csv(report)
 
 

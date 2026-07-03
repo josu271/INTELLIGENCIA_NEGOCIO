@@ -10,6 +10,13 @@ export const cablebiApi = {
       body: payload,
     })
   },
+  chatWithZoe(token, payload) {
+    return apiFetch('/api/v1/asistente/zoe/chat', {
+      method: 'POST',
+      token,
+      body: payload,
+    })
+  },
   listSites(token) {
     return apiFetch('/api/v1/sedes', { token })
   },
@@ -95,10 +102,10 @@ export const cablebiApi = {
     const suffix = region ? `?region=${encodeURIComponent(region)}` : ''
     return apiFetch(`/api/v1/kpis/sedes${suffix}`, { token })
   },
-  getRegionReport(token, params = {}) {
+  getSiteReport(token, params = {}) {
     const query = new URLSearchParams()
-    if (params.region) {
-      query.set('region', params.region)
+    if (params.site_id) {
+      query.set('site_id', params.site_id)
     }
     if (params.start_date) {
       query.set('start_date', params.start_date)
@@ -107,12 +114,12 @@ export const cablebiApi = {
       query.set('end_date', params.end_date)
     }
     const suffix = query.toString() ? `?${query}` : ''
-    return apiFetch(`/api/v1/reportes/regional${suffix}`, { token })
+    return apiFetch(`/api/v1/reportes/sedes${suffix}`, { token })
   },
-  exportRegionReport(token, params = {}) {
+  exportSiteReport(token, params = {}) {
     const query = new URLSearchParams()
-    if (params.region) {
-      query.set('region', params.region)
+    if (params.site_id) {
+      query.set('site_id', params.site_id)
     }
     if (params.start_date) {
       query.set('start_date', params.start_date)
@@ -121,7 +128,7 @@ export const cablebiApi = {
       query.set('end_date', params.end_date)
     }
     const suffix = query.toString() ? `?${query}` : ''
-    return apiFetch(`/api/v1/reportes/regional/export${suffix}`, {
+    return apiFetch(`/api/v1/reportes/sedes/export${suffix}`, {
       token,
       parseAs: 'text',
     })

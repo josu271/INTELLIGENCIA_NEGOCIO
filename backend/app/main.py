@@ -5,7 +5,16 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.core import database
-from app.routers import analytics, auth, catalogs, clients, contracts, incidents, payments
+from app.routers import (
+    analytics,
+    assistant,
+    auth,
+    catalogs,
+    clients,
+    contracts,
+    incidents,
+    payments,
+)
 from app.services.seed import seed_database
 
 
@@ -57,3 +66,4 @@ app.include_router(contracts.router)
 app.include_router(payments.router)
 app.include_router(incidents.router)
 app.include_router(analytics.router)
+app.include_router(assistant.router)

@@ -185,3 +185,21 @@ class IncidentRead(ORMModel):
 
 class ChurnPredictionRequest(BaseModel):
     client_id: int
+
+
+class AssistantHistoryMessage(BaseModel):
+    role: str = Field(min_length=1, max_length=20)
+    text: str = Field(min_length=1, max_length=600)
+
+
+class AssistantChatRequest(BaseModel):
+    message: str = Field(min_length=1, max_length=600)
+    view: str | None = Field(default=None, max_length=40)
+    history: list[AssistantHistoryMessage] = Field(default_factory=list, max_length=8)
+
+
+class AssistantChatResponse(BaseModel):
+    assistant_name: str = "Zoe"
+    scope: str
+    message: str
+    suggestions: list[str] = Field(default_factory=list)

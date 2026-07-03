@@ -1,13 +1,17 @@
+import { useState } from 'react'
 import {
   Bar,
   BarChart,
   CartesianGrid,
+  Cell,
+  Pie,
+  PieChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from 'recharts'
-import { DataTable, Field, MetricCard, Panel } from '../components/ui'
+import { Badge, DataTable, Field, MetricCard, Panel } from '../components/ui'
 import { formatCurrency, formatNumber } from '../utils/format'
 
 function monthRange(value) {
@@ -25,6 +29,18 @@ function monthRange(value) {
   }
 }
 
+function getPriorityTone(priority) {
+  if (priority === 'Alta') {
+    return 'danger'
+  }
+  if (priority === 'Media') {
+    return 'warning'
+  }
+  return 'success'
+}
+
+const STATUS_COLORS = ['#0f766e', '#ea580c', '#0f172a']
+
 export function ReportsPage({
   reportFilters,
   setReportFilters,
@@ -33,29 +49,45 @@ export function ReportsPage({
   report,
 }) {
   const reportMonth = reportFilters.start_date ? reportFilters.start_date.slice(0, 7) : ''
+  const marketingActions = report.marketing_actions ?? []
+  const [selectedCampaignTitle, setSelectedCampaignTitle] = useState('')
+  const selectedCampaign =
+    marketingActions.find((action) => action.title === selectedCampaignTitle) ??
+    marketingActions[0] ??
+    null
+  const activeCampaignTitle = selectedCampaign?.title ?? ''
+  const campaignChartData = marketingActions.map((action) => ({
+    name: action.chart_label ?? action.title,
+    clients: action.estimated_clients,
+  }))
+  const campaignBalanceData = [
+    { name: 'Nuevos clientes', value: report.totals.new_clients ?? 0 },
+    { name: 'Bajas', value: report.totals.churn_events ?? 0 },
+    { name: 'Casos', value: report.totals.incidents ?? 0 },
+  ].filter((item) => item.value > 0)
 
   return (
     <div className="section-stack">
       <Panel
         eyebrow="Reportes"
-        title="Resultados por zona y fechas"
-        subtitle="Para una empresa de telecomunicaciones, lo mas practico es revisar los resultados por mes."
+        title="Resultados por sede y mes"
+        subtitle="Selecciona una sede y revisa el comportamiento del negocio en el mes elegido."
         actions={
           <div className="filter-row">
-            <Field label="Zona">
+            <Field label="Sede">
               <select
-                value={reportFilters.region}
+                value={reportFilters.site_id}
                 onChange={(event) =>
                   setReportFilters((current) => ({
                     ...current,
-                    region: event.target.value,
+                    site_id: event.target.value,
                   }))
                 }
               >
-                <option value="">Todas las regiones</option>
-                {[...new Set(sites.map((site) => site.region))].map((region) => (
-                  <option key={region} value={region}>
-                    {region}
+                <option value="">Todas las sedes</option>
+                {sites.map((site) => (
+                  <option key={site.id} value={site.id}>
+                    {site.name}
                   </option>
                 ))}
               </select>
@@ -110,8 +142,125 @@ export function ReportsPage({
       </Panel>
 
       <Panel
+        eyebrow="Inteligencia comercial"
+        title="Que acciones considerar para una campana de marketing"
+        subtitle="Explora oportunidades por sede con apoyo visual y elige la campana mas conveniente para el periodo."
+      >
+        {marketingActions.length ? (
+          <>
+            <div className="report-marketing-layout">
+              <div className="report-marketing-charts">
+                <div className="chart-box marketing-chart">
+                  <ResponsiveContainer width="100%" height={260}>
+                    <BarChart data={campaignChartData}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#d9d4ca" />
+                      <XAxis dataKey="name" stroke="#6f6658" />
+                      <YAxis stroke="#6f6658" />
+                      <Tooltip formatter={(value) => [formatNumber(value), 'Clientes estimados']} />
+                      <Bar dataKey="clients" fill="#0f766e" radius={[8, 8, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+
+                <div className="chart-box marketing-chart">
+                  <ResponsiveContainer width="100%" height={260}>
+                    <PieChart>
+                      <Pie
+                        data={campaignBalanceData}
+                        dataKey="value"
+                        nameKey="name"
+                        innerRadius={58}
+                        outerRadius={92}
+                        paddingAngle={3}
+                      >
+                        {campaignBalanceData.map((entry, index) => (
+                          <Cell
+                            key={entry.name}
+                            fill={STATUS_COLORS[index % STATUS_COLORS.length]}
+                          />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(value) => [formatNumber(value), 'Casos del periodo']} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              <div className="campaign-selector">
+                {marketingActions.map((action) => {
+                  const isActive = action.title === activeCampaignTitle
+
+                  return (
+                    <button
+                      key={action.title}
+                      type="button"
+                      className={`campaign-card ${isActive ? 'campaign-card-active' : ''}`}
+                      onClick={() => setSelectedCampaignTitle(action.title)}
+                    >
+                      <div className="campaign-card-head">
+                        <strong>{action.title}</strong>
+                        <Badge tone={getPriorityTone(action.priority)}>{action.priority}</Badge>
+                      </div>
+                      <span>{action.target}</span>
+                      <small>
+                        Clientes estimados: {formatNumber(action.estimated_clients)}
+                      </small>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            {selectedCampaign ? (
+              <div className="campaign-detail">
+                <div className="campaign-detail-head">
+                  <div>
+                    <p className="panel-eyebrow">Campana seleccionada</p>
+                    <h3>{selectedCampaign.title}</h3>
+                  </div>
+                  <Badge tone={getPriorityTone(selectedCampaign.priority)}>
+                    {selectedCampaign.priority}
+                  </Badge>
+                </div>
+
+                <div className="campaign-kpis">
+                  <div className="campaign-kpi">
+                    <span>Sede analizada</span>
+                    <strong>{report.site_name ?? 'Todas las sedes'}</strong>
+                  </div>
+                  <div className="campaign-kpi">
+                    <span>Base estimada</span>
+                    <strong>{formatNumber(selectedCampaign.estimated_clients)} clientes</strong>
+                  </div>
+                  <div className="campaign-kpi">
+                    <span>Enfoque</span>
+                    <strong>{selectedCampaign.chart_label ?? 'Comercial'}</strong>
+                  </div>
+                </div>
+
+                <p className="marketing-target">
+                  <strong>Dirigido a:</strong> {selectedCampaign.target}
+                </p>
+                <p className="marketing-why">{selectedCampaign.why}</p>
+
+                <ul className="marketing-list">
+                  {selectedCampaign.recommended_actions.map((step) => (
+                    <li key={step}>{step}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+          </>
+        ) : (
+          <p className="empty-note">
+            Todavia no hay recomendaciones comerciales para este periodo.
+          </p>
+        )}
+      </Panel>
+
+      <Panel
         eyebrow="Resumen mensual"
-        title="Ingresos por mes"
+        title="Ingresos del periodo"
         subtitle="Comparacion del periodo seleccionado"
       >
         <div className="chart-box">
