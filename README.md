@@ -49,3 +49,9 @@ El backend intenta usar PostgreSQL con:
 - `DB_PASSWORD=sulla123`
 
 Si ese usuario no tiene permisos para crear la base o las tablas, el backend activa un fallback SQLite local para no bloquear el desarrollo. Para dejarlo 100% en PostgreSQL, usa el script `backend/init_postgres.sql` con un usuario administrador.
+
+## Despliegue demo en VPS
+
+El repositorio ya incluye `compose.yaml`, `deploy/Caddyfile`, `deploy/vps-refresh.sh` y `.github/workflows/deploy.yml` para publicar el demo en `nexoproyect.com`.
+
+La guia corta de despliegue esta en `DEPLOY_HOSTINGER.md`.

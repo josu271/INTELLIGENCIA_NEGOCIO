@@ -2,7 +2,7 @@ import { apiFetch } from './client'
 
 export const cablebiApi = {
   getSystemInfo() {
-    return apiFetch('/')
+    return apiFetch('/api/health')
   },
   login(payload) {
     return apiFetch('/api/v1/auth/login', {

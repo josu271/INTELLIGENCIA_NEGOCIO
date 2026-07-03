@@ -8,7 +8,9 @@ from dotenv import load_dotenv
 
 
 BASE_DIR = Path(__file__).resolve().parents[2]
-load_dotenv(BASE_DIR / ".env")
+ROOT_DIR = BASE_DIR.parent
+load_dotenv(ROOT_DIR / ".env")
+load_dotenv(BASE_DIR / ".env", override=True)
 
 
 @dataclass(slots=True)
@@ -24,10 +26,14 @@ class Settings:
     db_maintenance_db: str = os.getenv("DB_MAINTENANCE_DB", "postgres")
     secret_key: str = os.getenv("SECRET_KEY", "cablebi-dev-secret")
     cors_origins_raw: str = os.getenv(
-        "BACKEND_CORS_ORIGINS", "http://localhost:5173"
+        "BACKEND_CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173"
     )
     db_fallback_to_sqlite: bool = (
         os.getenv("DB_FALLBACK_TO_SQLITE", "true").lower() == "true"
+    )
+    sqlite_path_raw: str = os.getenv(
+        "SQLITE_PATH",
+        str(BASE_DIR / "cablebi_demo.db"),
     )
 
     @property
@@ -43,7 +49,9 @@ class Settings:
 
     @property
     def sqlite_url(self) -> str:
-        sqlite_path = BASE_DIR / "cablebi_demo.db"
+        sqlite_path = Path(self.sqlite_path_raw)
+        if not sqlite_path.is_absolute():
+            sqlite_path = (ROOT_DIR / sqlite_path).resolve()
         return f"sqlite:///{sqlite_path.as_posix()}"
 
 

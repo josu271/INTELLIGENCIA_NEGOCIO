@@ -36,6 +36,17 @@ app.add_middleware(
 )
 
 
+def build_health_response() -> dict:
+    return {
+        "name": "CableBI API",
+        "status": "ok",
+        "database_backend": database.ACTIVE_DATABASE_BACKEND,
+        "docs": "/docs",
+        "default_user": "admin",
+        "default_password": "admin123",
+    }
+
+
 @app.on_event("startup")
 def startup() -> None:
     database.initialize_database()
@@ -48,15 +59,13 @@ def startup() -> None:
 
 
 @app.get("/")
-def health() -> dict:
-    return {
-        "name": "CableBI API",
-        "status": "ok",
-        "database_backend": database.ACTIVE_DATABASE_BACKEND,
-        "docs": "/docs",
-        "default_user": "admin",
-        "default_password": "admin123",
-    }
+def health_root() -> dict:
+    return build_health_response()
+
+
+@app.get("/api/health")
+def health_api() -> dict:
+    return build_health_response()
 
 
 app.include_router(auth.router)

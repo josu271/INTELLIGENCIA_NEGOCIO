@@ -1,0 +1,54 @@
+services:
+  backend:
+    build:
+      context: ./backend
+    restart: unless-stopped
+    environment:
+      DB_HOST: ${DB_HOST:-localhost}
+      DB_PORT: ${DB_PORT:-5432}
+      DB_NAME: ${DB_NAME:-cablebi}
+      DB_SCHEMA: ${DB_SCHEMA:-cablebi}
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      DB_ADMIN_USER: ${DB_ADMIN_USER:-}
+      DB_ADMIN_PASSWORD: ${DB_ADMIN_PASSWORD:-}
+      DB_MAINTENANCE_DB: ${DB_MAINTENANCE_DB:-postgres}
+      DB_FALLBACK_TO_SQLITE: ${DB_FALLBACK_TO_SQLITE:-true}
+      SQLITE_PATH: ${SQLITE_PATH:-/data/cablebi_demo.db}
+      SECRET_KEY: ${SECRET_KEY:-cablebi-dev-secret}
+      BACKEND_CORS_ORIGINS: ${BACKEND_CORS_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173}
+    volumes:
+      - backend_data:/data
+    expose:
+      - "8000"
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-}
+    restart: unless-stopped
+    expose:
+      - "80"
+
+  caddy:
+    image: caddy:2.10-alpine
+    restart: unless-stopped
+    depends_on:
+      - backend
+      - frontend
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN}
+      APP_WWW_DOMAIN: ${APP_WWW_DOMAIN}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  backend_data:
+  caddy_data:
+  caddy_config:
